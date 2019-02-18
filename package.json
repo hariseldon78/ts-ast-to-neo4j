@@ -8,6 +8,6 @@
     "ts-morph": "^1.1.0"
   },
   "scripts": {
-    "start": "node src/index.js"
+    "start": "node --inspect src/index.js"
   }
 }

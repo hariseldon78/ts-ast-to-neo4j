@@ -9,5 +9,9 @@ class Demo {
     greet() {
         console.log("hello " + this.someString);
     }
+    accessBoth() {
+        console.log('hello ' + this.someString.repeat(this.someNumber));
+        console.log(this.someNumber);
+    }
 }
 //# sourceMappingURL=demo.js.map
