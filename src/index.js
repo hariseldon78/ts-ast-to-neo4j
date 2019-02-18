@@ -25,22 +25,28 @@ classes.forEach((c) => {
         }
     });
 });
-function extractStructure(node, kindStructure, allowDeeper = true) {
+function extractStructure(node, kindStructure) {
     let result = [];
     node.forEachChild(child => {
-        const kindName = child.getKindName();
-        const searchedKind = kindStructure[0];
-        if (kindName === searchedKind) {
+        if (child.getKindName() === kindStructure[0]) {
+            result.push(...extractSubStructure(child, kindStructure.slice(1))
+                .map(nodes => [child, ...nodes]));
+        }
+        result.push(...extractStructure(child, kindStructure));
+    });
+    return result;
+}
+function extractSubStructure(node, kindStructure) {
+    let result = [];
+    node.forEachChild(child => {
+        if (child.getKindName() === kindStructure[0]) {
             const subSequences = (kindStructure.length > 1) ?
-                extractStructure(child, kindStructure.slice(1), false) :
+                extractSubStructure(child, kindStructure.slice(1)) :
                 [[]];
             result.push(...subSequences
                 .map(nodes => [child, ...nodes]));
         }
-        else if (allowDeeper) {
-            result.push(...extractStructure(child, kindStructure, allowDeeper));
-        }
     });
-    return result.filter(sequence => sequence.length === kindStructure.length);
+    return result;
 }
 //# sourceMappingURL=index.js.map
