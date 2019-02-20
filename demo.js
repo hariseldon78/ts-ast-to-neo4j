@@ -1,4 +1,11 @@
 class Demo {
+    crossCall() {
+        console.log(this.multiply(5));
+    }
+    accessBoth() {
+        console.log('hello ' + this.someString.repeat(this.someNumber));
+        console.log(this.someNumber);
+    }
     constructor(n, s) {
         this.someNumber = n;
         this.someString = s;
@@ -8,10 +15,6 @@ class Demo {
     }
     greet() {
         console.log("hello " + this.someString);
-    }
-    accessBoth() {
-        console.log('hello ' + this.someString.repeat(this.someNumber));
-        console.log(this.someNumber);
     }
 }
 //# sourceMappingURL=demo.js.map

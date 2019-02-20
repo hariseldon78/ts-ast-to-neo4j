@@ -6,7 +6,9 @@ import {
 	PropertyAccessExpression,
 	PropertyDeclaration,
 } from 'ts-morph';
+import v1 from 'neo4j-driver';
 
+const driver = v1.driver('bolt://localhost', v1.auth.basic('neo4j', 'ts-ast-graph'));
 const project = new Project();
 const file = process.argv[2];
 if (!file) {
@@ -16,19 +18,45 @@ if (!file) {
 process.argv.slice(2).forEach(file => project.addExistingSourceFileIfExists(file));
 
 const classes = project.getSourceFiles().flatMap(sourceFile => sourceFile.getClasses());
-classes.forEach((c: ClassDeclaration) => {
+classes.forEach(async (c: ClassDeclaration) => {
 	const className = c.getName();
 	console.log('class name:', className);
-	c.forEachChild(child => {
-		// console.log(child.getKindName());
+	const session = driver.session();
+	await session.run('MERGE (c:Class {name:$className}) RETURN c', {className});
+	c.forEachChild(async child => {
 		switch (child.getKindName()) {
-			case 'PropertyDeclaration':
-				console.log('property: this.' + (child as PropertyDeclaration).getName());
+			case 'PropertyDeclaration': {
+				const propName = (child as PropertyDeclaration).getName();
+				console.log('property: this.' + propName);
+				// language=cypher
+				await session.run(
+					'MATCH (c:Class {name:$className}) ' +
+					'MERGE (c)-[:OWNS]->(p:Property {name:$propName}) ' +
+					'RETURN p', {className,propName});
+			}
 				break;
-			case 'MethodDeclaration':
-				console.log('method: this.' + (child as MethodDeclaration).getName());
-				const propertyAccessElements = extractStructure(child, ['PropertyAccessExpression','ThisKeyword']);
-				console.log(propertyAccessElements.map(seq=>seq.map(node=>node.getKindName()).join('=>')));
+			case 'MethodDeclaration': {
+				const methodName = (child as MethodDeclaration).getName();
+				await session.run(
+					'MATCH (c:Class {name:$className}) ' +
+					'MERGE (c)-[:OWNS]->(m:Method {name:$methodName}) ' +
+					'RETURN m', {className,methodName});
+				console.log('method: this.' + methodName);
+
+
+
+				const propertyAccessElements = extractStructure(child, ['PropertyAccessExpression', 'ThisKeyword']);
+				console.log(propertyAccessElements.map(seq=>'    access this.'+(seq[0] as PropertyAccessExpression).getName()))
+				propertyAccessElements.forEach( async seq=>{
+					const accessedPropName=(seq[0] as PropertyAccessExpression).getName()
+					await session.run(
+						'MATCH (c:Class {name:$className})-[:OWNS]->(m:Method {name:$methodName}) ' +
+						'MERGE (c)-[:OWNS]->(p {name:$accessedPropName}) ' +
+						'MERGE (m)-[:ACCESS]->(p) ' +
+						'RETURN p', {className,methodName,accessedPropName});
+
+				})
+			}
 				break;
 		}
 	});
@@ -39,17 +67,15 @@ function extractStructure(node: Node, kindStructure: string[]): Node[][] {
 	let result = [];
 	node.forEachChild(child => {
 		if (child.getKindName() === kindStructure[0]) {
-
-
 			result.push(...extractSubStructure(child, kindStructure.slice(1))
 				.map(nodes => [child, ...nodes]));
 		}
-			result.push(...extractStructure(child, kindStructure));
+		result.push(...extractStructure(child, kindStructure));
 	});
 	return result;
 }
 
-function extractSubStructure(node:Node,kindStructure:string[]):Node[][] {
+function extractSubStructure(node: Node, kindStructure: string[]): Node[][] {
 	let result = [];
 	node.forEachChild(child => {
 		if (child.getKindName() === kindStructure[0]) {
