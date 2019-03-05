@@ -5,6 +5,7 @@
     "@types/node": "^11.9.4",
     "lodash": "^4.17.11",
     "neo4j-driver": "^1.7.2",
+    "prettier": "^1.16.4",
     "ts-morph": "^1.1.0"
   },
   "scripts": {
