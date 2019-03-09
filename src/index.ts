@@ -88,10 +88,13 @@ async function main() {
         });
         await closeSession(session);
     });
+
+    // await findCommunities(driver);
+
     driver.close();
 }
 async function closeSession(session: Session) {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
         session.close(resolve);
     });
 }
@@ -110,7 +113,6 @@ function extractStructure(node: Node, kindStructure: string[]): Node[][] {
     });
     return result;
 }
-
 function extractSubStructures(node: Node, kindStructure: string[]): Node[][] {
     let result = [];
     node.forEachChild(child => {
@@ -124,4 +126,10 @@ function extractSubStructures(node: Node, kindStructure: string[]): Node[][] {
         }
     });
     return result;
+}
+async function findCommunities(driver:v1.Driver){
+    const session=driver.session();
+    await session.run("call algo.louvain('','ACCESS',{write:true,writeProperty:'community'}) yield nodes,communityCount,iterations,loadMillis,computeMillis,writeMillis");
+    await session.run('match (m),(n) where m.community=n.community and m.name<>n.name merge (m)-[:FRIEND]-(n)');
+    await closeSession(session);
 }

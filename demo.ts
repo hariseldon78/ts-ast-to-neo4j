@@ -1,4 +1,7 @@
 class Demo {
+	someNumber:number;
+	someString:string;
+
 	crossCall(){
 		console.log(this.multiply(5));
 	}
@@ -17,11 +20,15 @@ class Demo {
 		return x*this.someNumber;
 	}
 
+	squared(){
+		return this.someNumber*this.someNumber;
+	}
+
 	greet(){
 		console.log("hello "+this.someString);
 	}
-	someNumber:number;
-	someString:string;
 
-
+	greetFormally(){
+		console.log("Good morning "+this.someString);
+	}
 }
