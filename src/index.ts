@@ -6,8 +6,8 @@ import {
     PropertyAccessExpression,
     PropertyDeclaration,
 } from 'ts-morph';
-import v1 from 'neo4j-driver';
-import Session from 'neo4j-driver/types/v1/session';
+import neo4j from 'neo4j-driver';
+import { Driver } from 'neo4j-driver';
 
 main().catch(err=>console.log(err));
 
@@ -15,7 +15,8 @@ async function asyncForEach<T>(array: T[], mapper: (x: T) => Promise<void>): Pro
     return Promise.all(array.map(mapper));
 }
 async function main() {
-    const driver = v1.driver('bolt://localhost', v1.auth.basic('neo4j', 'ts-ast-graph'));
+    const driver = neo4j.driver('bolt://localhost:7687', neo4j.auth.basic('neo4j', 'ts-ast-graph'));
+    await driver.verifyConnectivity();
     const project = new Project();
     const file = process.argv[2];
     if (!file) {
@@ -31,7 +32,7 @@ async function main() {
         const session = driver.session();
         const className = c.getName();
         console.log('class name:', className);
-        await session.run('MERGE (c:Class {name:$className}) RETURN c', {
+        await runSession(driver, 'MERGE (c:Class {name:$className}) RETURN c', {
             className,
         });
         let children = [];
@@ -42,7 +43,7 @@ async function main() {
                     {
                         const propName = (child as PropertyDeclaration).getName();
                         console.log('property: this.' + propName);
-                        await session.run(
+                        await runSession(driver,
                             'MATCH (c:Class {name:$className}) ' +
                                 'MERGE (c)-[:OWNS]->(p:Property {name:$propName}) ' +
                                 'RETURN p',
@@ -53,7 +54,7 @@ async function main() {
                 case 'MethodDeclaration':
                     {
                         const methodName = (child as MethodDeclaration).getName();
-                        await session.run(
+                        await runSession(driver,
                             'MATCH (c:Class {name:$className}) ' +
                                 'MERGE (c)-[:OWNS]->(m:Method {name:$methodName}) ' +
                                 'RETURN m',
@@ -74,7 +75,7 @@ async function main() {
                         );
                         await asyncForEach(propertyAccessElements, async seq => {
                             const accessedPropName = (seq[0] as PropertyAccessExpression).getName();
-                            await session.run(
+                            await runSession(driver,
                                 'MATCH (c:Class {name:$className})-[:OWNS]->(m:Method {name:$methodName}) ' +
                                     'MERGE (c)-[:OWNS]->(p {name:$accessedPropName}) ' +
                                     'MERGE (m)-[:ACCESS]->(p) ' +
@@ -86,18 +87,19 @@ async function main() {
                     break;
             }
         });
-        await closeSession(session);
     });
 
-    // await findCommunities(driver);
+    await findCommunities(driver);
 
     driver.close();
 }
-async function closeSession(session: Session) {
-    return new Promise((resolve) => {
-        session.close(resolve);
-    });
+
+async function runSession(driver, ...args) {
+    const session = driver.session();
+    await session.run(...args);
+    await session.close();
 }
+
 function extractStructure(node: Node, kindStructure: string[]): Node[][] {
     let result = [];
     node.forEachChild(child => {
@@ -127,9 +129,8 @@ function extractSubStructures(node: Node, kindStructure: string[]): Node[][] {
     });
     return result;
 }
-async function findCommunities(driver:v1.Driver){
-    const session=driver.session();
-    await session.run("call algo.louvain('','ACCESS',{write:true,writeProperty:'community'}) yield nodes,communityCount,iterations,loadMillis,computeMillis,writeMillis");
-    await session.run('match (m),(n) where m.community=n.community and m.name<>n.name merge (m)-[:FRIEND]-(n)');
-    await closeSession(session);
+
+async function findCommunities(driver: Driver){
+    await runSession(driver, "call gds.louvain.write({nodeProjection: 'Method',relationshipProjection: {  TYPE: { type: 'ACCESS', orientation: 'undirected', aggregation: 'NONE' } }, writeProperty:'community'}) yield communityCount,createMillis,computeMillis,writeMillis");
+    await runSession(driver, 'match (m),(n) where m.community=n.community and m.name<>n.name merge (m)-[:FRIEND]-(n)');
 }
