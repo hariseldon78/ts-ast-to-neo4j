@@ -205,7 +205,7 @@ function findCommunities(driver) {
     return __awaiter(this, void 0, void 0, function () {
         return __generator(this, function (_a) {
             switch (_a.label) {
-                case 0: return [4 /*yield*/, runSession(driver, "call gds.louvain.write({nodeProjection: 'Method',relationshipProjection: {  TYPE: { type: 'ACCESS', orientation: 'undirected', aggregation: 'NONE' } }, writeProperty:'community'}) yield communityCount,createMillis,computeMillis,writeMillis")];
+                case 0: return [4 /*yield*/, runSession(driver, "call gds.louvain.write({nodeProjection: ['Method', 'Property'],relationshipProjection: {  TYPE: { type: 'ACCESS', orientation: 'undirected', aggregation: 'NONE' } }, writeProperty:'community'}) yield communityCount,createMillis,computeMillis,writeMillis")];
                 case 1:
                     _a.sent();
                     return [4 /*yield*/, runSession(driver, 'match (m),(n) where m.community=n.community and m.name<>n.name merge (m)-[:FRIEND]-(n)')];
